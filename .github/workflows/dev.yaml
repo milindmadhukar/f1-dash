@@ -16,10 +16,15 @@ jobs:
       matrix:
         include:
           - image: f1-dash
-            target: frontend
+            context: ./dash
+            dockerfile: ./dash/Dockerfile
           - image: f1-dash-api
+            context: .
+            dockerfile: ./dockerfile
             target: api
           - image: f1-dash-live
+            context: .
+            dockerfile: ./dockerfile
             target: live
     permissions:
       contents: read
@@ -58,9 +63,9 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./dockerfile
-          target: ${{ matrix.target }}
+          context: ${{ matrix.context || '.' }}
+          file: ${{ matrix.dockerfile || './dockerfile' }}
+          target: ${{ matrix.target || '' }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
