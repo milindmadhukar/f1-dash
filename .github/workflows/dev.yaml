@@ -1,5 +1,4 @@
-name: Build Dev Images on the devlop branch
-
+name: Build Dev Images on the develop branch
 on:
   push:
     branches:
@@ -7,22 +6,21 @@ on:
   pull_request:
     branches:
       - develop
-
 env:
   REGISTRY: ghcr.io
   USER: slowlydev
-
 jobs:
   build-dev-images:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image:
-          - f1-dash
-          - f1-dash-api
-          - f1-dash-live
-          - f1-dash-importer
-          - f1-dash-analytics
+        include:
+          - image: f1-dash
+            target: frontend
+          - image: f1-dash-api
+            target: api
+          - image: f1-dash-live
+            target: live
     permissions:
       contents: read
       packages: write
@@ -31,13 +29,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -45,7 +40,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -60,14 +54,13 @@ jobs:
             org.opencontainers.image.title=${{ matrix.image }}
             org.opencontainers.image.description=F1 Dash ${{ matrix.image }} development build
             org.opencontainers.image.vendor=slowlydev
-
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./dockerfile
-          target: importer
+          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -80,7 +73,6 @@ jobs:
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
           provenance: mode=max
           sbom: true
-
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v1
@@ -88,29 +80,3 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/${{ matrix.image }}
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
-
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: build-dev-images
-    if: github.event_name != 'pull_request'
-    strategy:
-      matrix:
-        image:
-          - f1-dash
-          - f1-dash-api
-          - f1-dash-live
-          - f1-dash-importer
-          - f1-dash-analytics
-    steps:
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.USER }}/${{ matrix.image }}:dev
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
