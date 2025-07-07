@@ -6,26 +6,14 @@ on:
   pull_request:
     branches:
       - develop
+
 env:
   REGISTRY: ghcr.io
   USER: ${{ github.repository_owner }}
+
 jobs:
   build-dev-images:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - image: f1-dash
-            context: ./dash
-            dockerfile: ./dash/Dockerfile
-          - image: f1-dash-api
-            context: .
-            dockerfile: ./dockerfile
-            target: api
-          - image: f1-dash-live
-            context: .
-            dockerfile: ./dockerfile
-            target: live
     permissions:
       contents: read
       packages: write
@@ -34,10 +22,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      
       - name: Log into registry ${{ env.REGISTRY }}
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -45,43 +36,46 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.USER }}/${{ matrix.image }}
+          images: |
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
           tags: |
             type=ref,event=branch,suffix=-{{sha}}
             type=ref,event=branch,suffix=-latest
             type=ref,event=pr,suffix=-{{sha}}
             type=raw,value=dev,enable={{is_default_branch}}
           labels: |
-            org.opencontainers.image.title=${{ matrix.image }}
-            org.opencontainers.image.description=F1 Dash ${{ matrix.image }} development build
-            org.opencontainers.image.vendor=slowlydev
-      - name: Build and push Docker image
-        id: build-and-push
-        uses: docker/build-push-action@v5
+            org.opencontainers.image.description=F1 Dash development build
+            org.opencontainers.image.vendor=${{ env.USER }}
+      
+      - name: Build and push Docker images
+        uses: docker/bake-action@v4
         with:
-          context: ${{ matrix.context || '.' }}
-          file: ${{ matrix.dockerfile || './dockerfile' }}
-          target: ${{ matrix.target || '' }}
-          platforms: linux/amd64,linux/arm64
+          targets: f1-dash,f1-dash-api,f1-dash-live
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          set: |
+            *.platform=linux/amd64,linux/arm64
+            *.cache-from=type=gha,scope={{.Target}}
+            *.cache-to=type=gha,mode=max,scope={{.Target}}
+            *.args.VERSION=${{ github.ref_name }}
+            *.args.COMMIT=${{ github.sha }}
+            *.args.BUILD_DATE=${{ github.event.head_commit.timestamp }}
           provenance: mode=max
           sbom: true
+      
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/${{ matrix.image }}
+          subject-name: |
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
           subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
