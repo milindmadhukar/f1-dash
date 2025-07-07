@@ -1,4 +1,4 @@
-name: Build Dev Images
+name: Build Dev Images on the devlop branch
 
 on:
   push:
