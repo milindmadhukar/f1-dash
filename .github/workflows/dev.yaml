@@ -54,6 +54,9 @@ jobs:
       - name: Build and push Docker images
         uses: docker/bake-action@v4
         with:
+          files: |
+            ./docker-bake.hcl
+            ${{ steps.meta.outputs.bake-file }}
           targets: f1-dash,f1-dash-api,f1-dash-live
           push: ${{ github.event_name != 'pull_request' }}
           set: |
