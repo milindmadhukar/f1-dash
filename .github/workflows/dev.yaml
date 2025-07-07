@@ -52,6 +52,7 @@ jobs:
             org.opencontainers.image.vendor=${{ env.USER }}
       
       - name: Build and push Docker images
+        id: build
         uses: docker/bake-action@v4
         with:
           files: |
@@ -69,13 +70,26 @@ jobs:
           provenance: mode=max
           sbom: true
       
-      - name: Generate artifact attestation
+      - name: Generate artifact attestation for f1-dash
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: |
-            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash
-            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
-            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
-          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash
+          subject-digest: ${{ steps.build.outputs.digest-f1-dash }}
+          push-to-registry: true
+      
+      - name: Generate artifact attestation for f1-dash-api
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
+          subject-digest: ${{ steps.build.outputs.digest-f1-dash-api }}
+          push-to-registry: true
+      
+      - name: Generate artifact attestation for f1-dash-live
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
+          subject-digest: ${{ steps.build.outputs.digest-f1-dash-live }}
           push-to-registry: true
