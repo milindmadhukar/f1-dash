@@ -8,7 +8,7 @@ on:
       - develop
 env:
   REGISTRY: ghcr.io
-  USER: slowlydev
+  USER: ${{ github.repository_owner }}
 jobs:
   build-dev-images:
     runs-on: ubuntu-latest
