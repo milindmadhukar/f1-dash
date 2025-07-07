@@ -46,10 +46,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
             ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
           tags: |
-            type=ref,event=branch,suffix=-{{sha}}
-            type=ref,event=branch,suffix=-latest
-            type=ref,event=pr,suffix=-{{sha}}
-            type=raw,value=dev,enable={{is_default_branch}}
+            type=raw,value=develop
           labels: |
             org.opencontainers.image.description=F1 Dash development build
             org.opencontainers.image.vendor=${{ env.USER }}
