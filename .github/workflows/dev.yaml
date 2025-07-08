@@ -52,6 +52,7 @@ jobs:
           targets: ${{ matrix.image }}
           push: true
           provenance: true
-          platforms: linux/amd64,linux/arm64
+          set: |
+            *.platform=linux/amd64,linux/arm64
           files: |
             cwd://${{ steps.meta.outputs.bake-file }}
