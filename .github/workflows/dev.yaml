@@ -6,11 +6,9 @@ on:
   pull_request:
     branches:
       - develop
-
 env:
   REGISTRY: ghcr.io
   USER: ${{ github.repository_owner }}
-
 jobs:
   build-dev-images:
     runs-on: ubuntu-latest
@@ -46,13 +44,16 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
             ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
           tags: |
-            type=raw,value=develop
+            type=ref,event=branch,suffix=-{{sha}}
+            type=ref,event=branch,suffix=-latest
+            type=ref,event=pr,suffix=-{{sha}}
+            type=raw,value=dev,enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.description=F1 Dash development build
             org.opencontainers.image.vendor=${{ env.USER }}
       
       - name: Build and push Docker images
-        id: build
+        id: build-and-push
         uses: docker/bake-action@v4
         with:
           files: |
@@ -70,26 +71,13 @@ jobs:
           provenance: mode=max
           sbom: true
       
-      - name: Generate artifact attestation for f1-dash
+      - name: Generate artifact attestation
         if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash
-          subject-digest: ${{ steps.build.outputs.digest-f1-dash }}
-          push-to-registry: true
-      
-      - name: Generate artifact attestation for f1-dash-api
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
-          subject-digest: ${{ steps.build.outputs.digest-f1-dash-api }}
-          push-to-registry: true
-      
-      - name: Generate artifact attestation for f1-dash-live
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
-          subject-digest: ${{ steps.build.outputs.digest-f1-dash-live }}
+          subject-name: |
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-api
+            ${{ env.REGISTRY }}/${{ env.USER }}/f1-dash-live
+          subject-digest: ${{ steps.build-and-push.outputs.digest }}
           push-to-registry: true
