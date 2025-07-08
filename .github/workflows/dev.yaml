@@ -1,5 +1,4 @@
 name: release
-# runs on tag push and develop branch push
 on:
   push:
     branches:
@@ -8,7 +7,6 @@ on:
       - v*
 env:
   REGISTRY: ghcr.io
-  USER: ${{ github.repository_owner }}
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -43,7 +41,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.7.0
         with:
-          images: ${{ env.REGISTRY }}/${{ env.USER }}/${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
             type=ref,event=branch,branch=develop,value=dev
             type=semver,pattern={{version}}
@@ -54,8 +52,6 @@ jobs:
           targets: ${{ matrix.image }}
           push: true
           provenance: true
-          set: |
-            *.platform=linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64
           files: |
-            ./docker-bake.hcl
-            ${{ steps.meta.outputs.bake-file }}
+            cwd://${{ steps.meta.outputs.bake-file }}
